@@ -1,0 +1,28 @@
+name: ImageGeniePhotos
+options:
+  deploymentTarget:
+    macOS: "14.0"
+targets:
+  ImageGeniePhotos:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Image Genie Photos
+        NSPhotoLibraryUsageDescription: Image Genie reads your Photos library and, only after your confirmation, prepares originals for import into Immich. It never changes or deletes Apple Photos assets.
+    entitlements:
+      path: ImageGeniePhotos.entitlements
+      properties:
+        com.apple.security.personal-information.photos-library: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: local.imagegenie.photos
+        SWIFT_VERSION: "5.0"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: YES

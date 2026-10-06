@@ -50,6 +50,20 @@ enum StagingError: LocalizedError {
     }
 }
 
+enum DeletionError: LocalizedError {
+    case notFound
+    case timedOut
+    case failed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .notFound: return "This Photos asset is no longer available. Refresh the review and try again."
+        case .timedOut: return "Photos did not finish deleting the selected asset in time. Check the Photos library before retrying."
+        case .failed(let message): return "Photos could not delete the selected asset: \(message)"
+        }
+    }
+}
+
 enum PhotoCatalog {
     static let maxAssets = 500
     static let formatter: ISO8601DateFormatter = {
@@ -70,6 +84,24 @@ enum PhotoCatalog {
     }
 
     static var canRead: Bool { authorization == "authorized" || authorization == "limited" }
+    static var canDelete: Bool { authorization == "authorized" }
+
+    static func delete(id: String) throws {
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil)
+        guard assets.count == 1 else { throw DeletionError.notFound }
+
+        let completion = DispatchSemaphore(value: 0)
+        var failure: Error?
+        PHPhotoLibrary.shared().performChanges({
+            PHAssetChangeRequest.deleteAssets(assets)
+        }) { success, error in
+            if !success { failure = error ?? DeletionError.failed("The request was not applied.") }
+            completion.signal()
+        }
+
+        guard completion.wait(timeout: .now() + 60) == .success else { throw DeletionError.timedOut }
+        if let failure { throw DeletionError.failed(failure.localizedDescription) }
+    }
 
     private static var stagingDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser

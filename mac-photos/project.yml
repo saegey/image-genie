@@ -12,7 +12,7 @@ targets:
       path: Info.plist
       properties:
         CFBundleDisplayName: Image Genie Photos
-        NSPhotoLibraryUsageDescription: Image Genie reads your Photos library and, only after your confirmation, prepares originals for import into Immich. It never changes or deletes Apple Photos assets.
+        NSPhotoLibraryUsageDescription: Image Genie reads your Photos library, prepares originals for Immich imports, and deletes selected assets only after your explicit confirmation.
     entitlements:
       path: ImageGeniePhotos.entitlements
       properties:

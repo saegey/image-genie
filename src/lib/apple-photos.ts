@@ -13,9 +13,9 @@ export class ApplePhotosError extends Error {
 
 type BridgeReply = { status: number; body: Buffer; contentType: string };
 
-export async function callPhotos(path: string, timeout = 60000): Promise<BridgeReply> {
+export async function callPhotos(path: string, timeout = 60000, method = "GET"): Promise<BridgeReply> {
   return await new Promise<BridgeReply>((resolve, reject) => {
-    const request = http.request({ socketPath: bridgeSocketPath(), path, method: "GET", timeout, headers: { Host: "localhost" } }, (response) => {
+    const request = http.request({ socketPath: bridgeSocketPath(), path, method, timeout, headers: { Host: "localhost" } }, (response) => {
       const chunks: Buffer[] = [];
       response.on("data", (chunk: Buffer) => chunks.push(chunk));
       response.on("end", () => resolve({ status: response.statusCode || 502, body: Buffer.concat(chunks), contentType: String(response.headers["content-type"] || "application/octet-stream") }));
@@ -87,4 +87,17 @@ export async function stageAppleAsset(id: string): Promise<StagedAsset> {
 
 export async function releaseAppleAsset(token: string): Promise<void> {
   await callPhotos(`/release?${new URLSearchParams({ token })}`);
+}
+
+export async function deleteAppleAsset(id: string): Promise<void> {
+  const reply = await callPhotos(`/delete?${new URLSearchParams({ id })}`, 60000, "DELETE");
+  if (reply.status !== 200) {
+    let detail: { error?: string } = {};
+    try { detail = JSON.parse(reply.body.toString("utf8")) as { error?: string }; } catch { /* Companion returned an invalid error body. */ }
+    throw new ApplePhotosError(detail.error || `Apple Photos returned HTTP ${reply.status}.`, reply.status);
+  }
+  let result: { deleted?: boolean };
+  try { result = JSON.parse(reply.body.toString("utf8")) as { deleted?: boolean }; }
+  catch { throw new ApplePhotosError("The Photos companion returned an invalid deletion response.", 502); }
+  if (result.deleted !== true) throw new ApplePhotosError("The Photos companion did not confirm deletion.", 502);
 }

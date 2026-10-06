@@ -2,6 +2,7 @@ import {
   AssetMediaSize,
   AssetOrder,
   SearchOrderField,
+  addAssetsToAlbums,
   getAllAlbums,
   getServerVersion,
   init,
@@ -159,6 +160,31 @@ export async function createConfirmedAlbum(name: string, ids: string[]) {
   try {
     // Immich creates the album and adds the assets in one server operation.
     return await createAlbum({ createAlbumDto: { albumName: name, assetIds: ids } });
+  } catch (error) {
+    throw explainImmichError(error);
+  }
+}
+
+export async function getOwnedAlbums() {
+  configure();
+  try {
+    const albums = await getAllAlbums({ isOwned: true });
+    return albums.map(({ id, albumName, assetCount }) => ({ id, name: albumName, assetCount }))
+      .sort((first, second) => first.name.localeCompare(second.name));
+  } catch (error) {
+    throw explainImmichError(error);
+  }
+}
+
+export async function addConfirmedAssetsToAlbum(albumId: string, ids: string[]) {
+  configure();
+  try {
+    const result = await addAssetsToAlbums({ albumsAddAssetsDto: { albumIds: [albumId], assetIds: ids } });
+    if (!result.success) {
+      const detail = result.error ? ` (${result.error})` : "";
+      throw new ImmichError(`Immich could not add the selected assets to that album${detail}.`, 409);
+    }
+    return result;
   } catch (error) {
     throw explainImmichError(error);
   }

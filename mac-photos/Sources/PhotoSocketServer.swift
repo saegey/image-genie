@@ -100,14 +100,15 @@ final class PhotoSocketServer {
         }
         guard let firstLine = String(data: request, encoding: .utf8)?.components(separatedBy: "\r\n").first,
               let target = firstLine.split(separator: " ").dropFirst().first,
-              firstLine.hasPrefix("GET "),
+              let method = firstLine.split(separator: " ").first,
+              method == "GET" || method == "DELETE",
               let url = URLComponents(string: "http://localhost\(target)") else {
             send(client, status: 400, body: json(["error": "Invalid request"])); return
         }
         let query = Dictionary((url.queryItems ?? []).map { ($0.name, $0.value ?? "") }, uniquingKeysWith: { first, _ in first })
         switch url.path {
         case "/status":
-            send(client, status: 200, body: json(["state": PhotoCatalog.authorization, "version": 2]))
+            send(client, status: 200, body: json(["state": PhotoCatalog.authorization, "version": 3]))
         case "/assets":
             guard PhotoCatalog.canRead else { send(client, status: 403, body: json(["error": "Apple Photos access is not allowed"])); return }
             guard let start = parseDate(query["start"]), let end = parseDate(query["end"]), start < end,
@@ -141,6 +142,18 @@ final class PhotoSocketServer {
             } catch {
                 send(client, status: 422, body: json(["error": error.localizedDescription]))
             }
+        case "/delete":
+            guard method == "DELETE" else { send(client, status: 405, body: json(["error": "Use DELETE to remove an Apple Photos asset"])); return }
+            guard PhotoCatalog.canDelete else { send(client, status: 403, body: json(["error": "Full Photos library access is required to delete assets"])); return }
+            guard let id = query["id"], !id.isEmpty, id.count <= 300 else {
+                send(client, status: 400, body: json(["error": "Invalid asset ID"])); return
+            }
+            do {
+                try PhotoCatalog.delete(id: id)
+                send(client, status: 200, body: json(["deleted": true]))
+            } catch {
+                send(client, status: 422, body: json(["error": error.localizedDescription]))
+            }
         case "/release":
             guard let token = query["token"], UUID(uuidString: token) != nil else {
                 send(client, status: 400, body: json(["error": "Invalid staging token"])); return
@@ -170,6 +183,7 @@ final class PhotoSocketServer {
         case 404: reason = "Not Found"
         case 409: reason = "Conflict"
         case 422: reason = "Unprocessable Content"
+        case 405: reason = "Method Not Allowed"
         default: reason = "Error"
         }
         let header = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: \(contentType)\r\nContent-Length: \(body.count)\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n"

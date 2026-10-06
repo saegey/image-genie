@@ -13,7 +13,7 @@ struct ImageGeniePhotosApp: App {
                     .foregroundStyle(.green)
                 Text("Apple Photos connection")
                     .font(.title2.bold())
-                Text("Image Genie can show your Photos metadata and previews. After you confirm an import, it prepares originals for Immich. It never changes or deletes Apple Photos assets.")
+                Text("Image Genie can show Photos metadata and previews, prepare originals for Immich, and delete selected assets after you confirm in Image Genie.")
                     .foregroundStyle(.secondary)
                 HStack(spacing: 8) {
                     Circle().fill(model.socketReady ? Color.green : Color.orange).frame(width: 8, height: 8)
@@ -24,10 +24,14 @@ struct ImageGeniePhotosApp: App {
                     Button("Allow Photos access") { model.requestAccess() }
                         .buttonStyle(.borderedProminent)
                 }
+                if model.authorizationLabel == "Limited" {
+                    Text("Full Photos library access is needed to delete items. Change Image Genie Photos access in System Settings.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 if let error = model.error {
                     Text(error).foregroundStyle(.red).font(.footnote)
                 }
-                Text("Keep this app open while reviewing or importing Apple Photos in Image Genie.")
+                Text("Keep this app open while reviewing, importing, or deleting Apple Photos in Image Genie.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             .padding(28)

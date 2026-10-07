@@ -21,6 +21,6 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Image Genie reads your Photos library and, only after your confirmation, prepares originals for import into Immich. It never changes or deletes Apple Photos assets.</string>
+	<string>Image Genie reads your Photos library, prepares originals for Immich imports, and deletes selected assets only after your explicit confirmation.</string>
 </dict>
 </plist>

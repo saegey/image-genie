@@ -8,11 +8,11 @@ A local photo review layer for an existing Immich instance. Immich stores the ph
 - Filter screenshots and camera models. Screenshot detection is a filename/path/tag heuristic, so unusual screenshot names may be missed.
 - Review Immich thumbnails, capture times, filenames, camera, location, people, and existing albums when available.
 - See event suggestions based on capture time and location. Rename, change the selected assets, or dismiss each suggestion.
-- Create an Immich album only after pressing **Confirm and create**. The Immich SDK sends the album name and selected asset IDs in one create request; there are no delete operations.
+- Create a new Immich album or add selected assets to an existing owned album, only after explicit confirmation.
 
 ## Apple Photos review and import
 
-On the same Mac, a small native companion reads Apple Photos through PhotoKit. It returns metadata and thumbnails to Image Genie through a private Unix socket under your user account. The Apple Photos tab lets you select assets and explicitly confirm importing their unmodified originals into Immich. It never creates Photos albums, changes Photos metadata, or deletes photos. It does not claim that an Apple asset matches an Immich asset until Immich confirms an exact-byte duplicate or a successful upload.
+On the same Mac, a small native companion reads Apple Photos through PhotoKit. It returns metadata and thumbnails to Image Genie through a private Unix socket under your user account. The Apple Photos tab lets you select assets and explicitly confirm importing their unmodified originals into Immich. You can also explicitly delete selected Apple Photos assets: deletion requires full Photos library access, a second confirmation, and typing `DELETE`, with a limit of 50 assets per batch. PhotoKit moves deleted items to Recently Deleted. With iCloud Photos, deletion syncs to other devices signed into the same Apple Account; Apple says items can be recovered for 30 days before permanent removal. Image Genie does not permanently empty Recently Deleted. It does not create Photos albums or change Photos metadata. It does not claim that an Apple asset matches an Immich asset until Immich confirms an exact-byte duplicate or a successful upload.
 
 Build and launch the companion:
 
@@ -26,7 +26,7 @@ The Xcode project is included. If you edit `project.yml`, regenerate it with `xc
 
 With **Optimize Mac Storage**, assets can appear in the review even when their previews are not stored on the Mac. Visible thumbnails and the **View larger** 2,400-pixel preview now fetch from iCloud automatically when necessary, with a retry control for transient failures. The larger viewer supports arrow-key navigation and fits portrait images within the available window. An import confirmation allows the companion to fetch full originals from iCloud if needed. You do not need to switch off Optimize Mac Storage, but browsing may use iCloud bandwidth. Camera model and named people are not part of this PhotoKit view; they remain available from Immich where Immich has that metadata.
 
-Apple Photos deletion is not enabled. With iCloud Photos, deleting an item on the Mac also removes it from iCloud and other synced devices, so deletion requires a separate, carefully confirmed workflow.
+Deletion affects Apple Photos only; it does not remove an asset that has already been imported into Immich. Review selected items before confirming, especially when iCloud Photos is enabled. Apple's [Photos guidance](https://support.apple.com/guide/photos/delete-photos-videos-recover-deleted-pht3bfab2f96/mac) explains how to recover items from Recently Deleted during the 30-day recovery period.
 
 To catch up, switch to **Apple Photos**, set **From** to a date before your last import and **To** after today, then choose **Select all shown → Import selected → Confirm and import**. The date range is at most one year and the review loads at most 5,000 assets; narrow the range if it says it is capped. Screenshot and source filters apply to selection. Keep the browser tab, Next.js server, and native companion running until progress reaches the end. If a run stops, repeat it: Image Genie asks Immich whether each original's SHA-1 checksum is already present before uploading. It reports new, existing, and failed assets and keeps failed assets selected for a retry. Deduplication is exact-byte, so an edited or re-encoded copy may still appear separately.
 
@@ -43,7 +43,18 @@ IMMICH_URL=https://immich.home.arpa/api
 IMMICH_API_KEY=your-immich-api-key
 ```
 
-The URL must end in `/api`. The API key remains on the Next.js server and is never sent to the browser. Give the key asset read, asset upload, album read, album create, and asset share permissions. Thumbnail viewing may also require asset view; check Immich's permission descriptions for your server.
+Alternatively, keep both values in 1Password and let the [1Password CLI](https://developer.1password.com/docs/cli/) (`op`) inject them at runtime. `.env.1password` holds `op://` references (no secrets) and is committed. Create the item once:
+
+```sh
+op item create --vault Homelab --category "API Credential" --title image-genie \
+  'credential=your-immich-api-key' 'url[text]=https://immich.home.arpa/api'
+```
+
+Then run `npm run dev:op`, `npm run start:op`, or `npm run docker:op` instead of the plain scripts; no `.env.local` or `.env` file is needed. To use a different vault or item, edit the references in `.env.1password`.
+
+The local `dev` and `start` scripts set `NODE_USE_SYSTEM_CA=1`, so Node trusts certificate authorities in the macOS keychain (for example a homelab CA for `*.home.arpa`).
+
+The URL must end in `/api`. The API key remains on the Next.js server and is never sent to the browser. Give the key asset read, asset upload, album read, album create, album update, and asset share permissions. Thumbnail viewing may also require asset view; check Immich's permission descriptions for your server.
 
 ```sh
 npm install
@@ -64,7 +75,7 @@ For Docker, `IMMICH_URL` must resolve *inside the container*. Configure local DN
 
 ## Integration and limits
 
-This version uses the official `@immich/sdk` 3.2.2, matched to an Immich server reporting 3.2.2. It checks the server's major/minor version before reading or importing assets. If you upgrade Immich, update and test the SDK against your instance before continuing. The app uses SDK search, album lookup, thumbnail, album create, and bulk-upload-check methods. Full originals are streamed to Immich's supported asset-upload API. It does not access Immich's database or filesystem.
+This version uses the official `@immich/sdk` 3.2.2, matched to an Immich server reporting 3.2.2. It checks the server's major/minor version before reading or importing assets. If you upgrade Immich, update and test the SDK against your instance before continuing. The app uses SDK search, album lookup, thumbnail, album create, add-assets-to-album, and bulk-upload-check methods. Full originals are streamed to Immich's supported asset-upload API. It does not access Immich's database or filesystem.
 
 Immich search loads up to 500 assets per review. Apple Photos review loads up to 5,000. Both say when more match the range; narrow the dates for larger libraries. Album membership on the Immich **all assets** view uses Immich's per-asset album lookup, so that view can take longer for a large date range. Screenshots and cameras are filtered within the loaded date range. Grouping uses a six-hour gap and 50 km location threshold when both assets have coordinates; it does not call an AI model yet.
 

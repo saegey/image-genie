@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createConfirmedAlbum, explainImmichError } from "@/lib/immich";
+import { createConfirmedAlbum, explainImmichError, getOwnedAlbums } from "@/lib/immich";
 
 export const runtime = "nodejs";
+
+export async function GET() {
+  try {
+    return NextResponse.json({ albums: await getOwnedAlbums() }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    const failure = explainImmichError(error);
+    return NextResponse.json({ error: failure.message }, { status: failure.status });
+  }
+}
 
 export async function POST(request: NextRequest) {
   let body: unknown;

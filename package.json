@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 127.0.0.1",
+    "dev": "NODE_USE_SYSTEM_CA=1 next dev --hostname 127.0.0.1",
+    "dev:op": "NODE_USE_SYSTEM_CA=1 op run --env-file=.env.1password -- next dev --hostname 127.0.0.1",
     "build": "next build",
-    "start": "next start --hostname 127.0.0.1",
+    "start": "NODE_USE_SYSTEM_CA=1 next start --hostname 127.0.0.1",
+    "start:op": "NODE_USE_SYSTEM_CA=1 op run --env-file=.env.1password -- next start --hostname 127.0.0.1",
     "start:docker": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "docker:op": "op run --env-file=.env.1password -- docker compose up --build -d"
   },
   "dependencies": {
     "@immich/sdk": "3.2.2",
